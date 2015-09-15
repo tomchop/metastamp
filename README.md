@@ -1,4 +1,4 @@
-## metastam.py
+## metastamp.py
 
 Metastamp.py is a quick-and-dirty tool that recurses on a directory and extracts filesystem agnostic metadata from files it encounters. It displays them sorting records by date.
 
