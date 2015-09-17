@@ -5,6 +5,7 @@ import os
 import time
 import md5
 import argparse
+import codecs
 
 try:
     import pefile
@@ -64,6 +65,7 @@ def extract_timestamps_from_domain(domain):
     if not domain:
         return []
 
+    domain = domain.encode('idna')
     w = whois.whois(domain)
 
     if isinstance(w.creation_date, list):
@@ -71,12 +73,15 @@ def extract_timestamps_from_domain(domain):
     else:
         dtime = w.creation_date
 
-    entry = {}
-    entry['epoch'] = time.gmtime(int(dtime.strftime("%s")))
-    entry['timestamp'] = dtime.strftime('%Y-%m-%d %H:%M:%S')
-    entry['label'] = "{} creation date".format(domain)
-    entry['item'] = domain
-    entry['type'] = 'Domain creation'
+    try:
+        entry = {}
+        entry['epoch'] = time.gmtime(int(dtime.strftime("%s")))
+        entry['timestamp'] = dtime.strftime('%Y-%m-%d %H:%M:%S')
+        entry['label'] = "{} creation date".format(domain)
+        entry['item'] = domain
+        entry['type'] = 'Domain creation'
+    except Exception as e:
+        return []
 
     return [entry]
 
@@ -111,7 +116,7 @@ timeline = []
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Recurse in a directory extract various timestamps from files.')
     parser.add_argument('directory', type=str, help='The directory to recurse on')
-    parser.add_argument('--domains', type=argparse.FileType('r'), help='Include the creation dates of these domains')
+    parser.add_argument('--domains', type=str, help='Include the creation dates of these domains')
 
     args = parser.parse_args()
 
@@ -135,10 +140,11 @@ if __name__ == '__main__':
         timeline.extend(extract_exif_timestamps(exif))
 
     if args.domains and HAS_WHOIS:
-        for domain in args.domains:
-            if not domain.startswith('#'):
-                entry = extract_timestamps_from_domain(domain.strip())
-                timeline.extend(entry)
+        with codecs.open(args.domains, 'r', encoding='utf8') as domains:
+            for domain in domains:
+                if not domain.startswith('#'):
+                    entry = extract_timestamps_from_domain(domain.strip())
+                    timeline.extend(entry)
 
     timeline = sorted(timeline, key=lambda k: k['epoch'])
     sys.stdout.write("{: <30}\t{: <20}\t{}\n".format('item', 'type', 'timestamp'))
